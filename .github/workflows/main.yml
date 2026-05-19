@@ -16,31 +16,72 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    env:
+      PLUGIN_SDK_DIR: ${{ github.workspace }}\plugin-sdk
 
     steps:
     - name: Checkout Repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         submodules: recursive
 
-    - name: Add msbuild to PATH
-      uses: microsoft/setup-msbuild@main
+    - name: Checkout plugin-sdk
+      uses: actions/checkout@v6
+      with:
+        repository: DK22Pac/plugin-sdk
+        path: plugin-sdk
+
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v3
+
+    - name: Generate plugin-sdk project
+      shell: cmd
+      run: '"%PLUGIN_SDK_DIR%\tools\premake\premake5" vs2022 --file="%PLUGIN_SDK_DIR%\tools\premake\premake5.lua"'
+
+    - name: Build plugin-sdk
+      shell: cmd
+      run: msbuild "%PLUGIN_SDK_DIR%\plugin.sln" /p:Configuration=Release /p:Platform="Mixed Platforms" /t:plugin_iii;plugin_vc;plugin_sa /m
       
     - name: Configure build
-      run: ./premake5.bat
-      
-    - name: Build
-      run: |
-        msbuild -m build/OpenLA.sln /property:Configuration=Release /property:Platform=Win32
+      shell: cmd
+      run: .\premake5.exe vs2022
+
+    # - name: Build (GTA3)
+    #   run: msbuild -m build/OpenLimitAdjuster.sln /property:Configuration=Release /property:Platform=GTA3
+
+    # - name: Build (GTAVC)
+    #   run: msbuild -m build/OpenLimitAdjuster.sln /property:Configuration=Release /property:Platform=GTAVC
+
+    - name: Build (GTASA)
+      run: msbuild -m build/OpenLimitAdjuster.sln /property:Configuration=Release /property:Platform=GTASA
+
+    - name: List Directory Recursively
+      run: dir -Recurse
 
     - name: Copy Configuration File
+      shell: pwsh
       run: |
-        copy doc\III.VC.SA.LimitAdjuster.ini bin\III.VC.SA.LimitAdjuster.ini
+        $ini = Join-Path $PWD "doc\III.VC.SA.LimitAdjuster.ini"
+        if (-not (Test-Path $ini)) { throw "INI not found: $ini" }
+
+        $outputRoots = @(
+          "build\output\bin",
+          "output\bin"
+        ) | ForEach-Object { Join-Path $PWD $_ } | Where-Object { Test-Path $_ }
+
+        if (-not $outputRoots) { throw "No build output folder found under build\\output\\bin or output\\bin." }
+
+        foreach ($root in $outputRoots) {
+          Get-ChildItem -Path $root -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+            Copy-Item $ini -Destination $_.FullName -Force
+          }
+        }
 
     - name: Upload artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: III.VC.SA.LimitAdjuster
         path: |
-          bin\*
-          !bin\*.pdb
+          build\output\bin\**
+          output\bin\**
+          !**\*.pdb

@@ -8,6 +8,12 @@ workspace "OpenLimitAdjuster"
         "doc/**",
 	}
 
+local function add_optional_postbuild(env_var, dest_file)
+	postbuildcommands {
+		"if not \"$(" .. env_var .. ")\"==\"\" copy /y \"$(TargetPath)\" \"$(" .. env_var .. ")\\scripts\\" .. dest_file .. "\"",
+	}
+end
+
 project "OpenLimitAdjuster"
 	kind "SharedLib"
 	language "C++"
@@ -112,12 +118,10 @@ project "OpenLimitAdjuster"
 		includedirs {
 			"$(PLUGIN_SDK_DIR)/plugin_III/",
 			"$(PLUGIN_SDK_DIR)/plugin_III/game_III/",
+			"$(PLUGIN_SDK_DIR)/plugin_III/game_III/enums",
 			"$(PLUGIN_SDK_DIR)/plugin_III/game_III/rw",
 		}
-		postbuildcommands {
-		"copy /y \"$(TargetPath)\" \"$(GTA_III_DIR)\\scripts\\III.OpenLimitAdjuster.asi\"",
-		--"copy /y \"$(TargetPath)\" \"D:\\Projects\\3D\\GTA\\Liberty City Countryside\\GTA 3 UL\\scripts\\III.OpenLimitAdjuster.asi\"",
-		}
+		add_optional_postbuild("GTA_III_DIR", "III.OpenLimitAdjuster.asi")
 
 	filter { "platforms:GTAVC" }
 		targetdir "output/bin/GTAVC/"
@@ -129,11 +133,10 @@ project "OpenLimitAdjuster"
 		includedirs {
         	"$(PLUGIN_SDK_DIR)/plugin_VC/",
 			"$(PLUGIN_SDK_DIR)/plugin_VC/game_VC/",
+			"$(PLUGIN_SDK_DIR)/plugin_VC/game_VC/enums",
 			"$(PLUGIN_SDK_DIR)/plugin_VC/game_VC/rw",
 		}
-		postbuildcommands {
-		"copy /y \"$(TargetPath)\" \"$(GTA_VC_DIR)\\scripts\\VC.OpenLimitAdjuster.asi\"",
-		}
+		add_optional_postbuild("GTA_VC_DIR", "VC.OpenLimitAdjuster.asi")
 
 	filter { "platforms:GTASA" }
 		targetdir "output/bin/GTASA/"
@@ -145,11 +148,10 @@ project "OpenLimitAdjuster"
 		includedirs {
         	"$(PLUGIN_SDK_DIR)/plugin_SA/",
 			"$(PLUGIN_SDK_DIR)/plugin_SA/game_SA/",
+			"$(PLUGIN_SDK_DIR)/plugin_SA/game_SA/enums",
 			"$(PLUGIN_SDK_DIR)/plugin_SA/game_SA/rw",
 		}
-		postbuildcommands {
-		"copy /y \"$(TargetPath)\" \"$(GTA_SA_DIR)\\scripts\\SA.OpenLimitAdjuster.asi\"",
-		}	
+		add_optional_postbuild("GTA_SA_DIR", "SA.OpenLimitAdjuster.asi")
     
 --    configuration "vs*"
 --        buildoptions { "/arch:IA32" }           -- disable the use of SSE/SSE2 instructions
