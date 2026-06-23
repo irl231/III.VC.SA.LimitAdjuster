@@ -14,6 +14,12 @@ local function add_optional_postbuild(env_var, dest_file)
 	}
 end
 
+newoption {
+    trigger     = "with-version",
+    value       = "STRING",
+    description = "Current version"
+}
+
 project "OpenLimitAdjuster"
 	kind "SharedLib"
 	language "C++"
@@ -33,9 +39,8 @@ project "OpenLimitAdjuster"
 	}
 
     defines { "rsc_CompanyName=\"LimitAdjuster\"" }
-    defines { "rsc_LegalCopyright=\"MIT License\""} 
-    defines { "rsc_FileVersion=\"1.0.0.0\"", "rsc_ProductVersion=\"1.0.0.0\"" }
-    defines { "rsc_InternalName=\"%{prj.name}\"", "rsc_ProductName=\"%{prj.name}\"", "rsc_OriginalFilename=\"%{prj.name}.dll\"" }
+    defines { "rsc_LegalCopyright=\"MIT License\""}
+    defines { "rsc_InternalName=\"%{prj.name}\"", "rsc_ProductName=\"%{prj.name}\"", "rsc_OriginalFilename=\"%{cfg.buildtarget.name}\"" }
     defines { "rsc_FileDescription=\"This is a open source limit adjuster for Grand Theft Auto III, Vice City and San Andreas\"" }
     defines { "rsc_UpdateUrl=\"https://github.com/ThirteenAG/III.VC.SA.LimitAdjuster\"" }
 
@@ -47,6 +52,44 @@ project "OpenLimitAdjuster"
 		"$(PLUGIN_SDK_DIR)/shared/game/",
 		"$(PLUGIN_SDK_DIR)/injector/",
 	}
+
+    local major = os.date("%d")
+    local minor = os.date("%m")
+    local build = os.date("%Y")
+    local revision = os.date("%H") .. os.date("%M")
+
+    if _OPTIONS["with-version"] then
+        local t = {}
+        for i in _OPTIONS["with-version"]:gmatch("([^.]+)") do
+            t[#t + 1], _ = i:gsub("%D+", "")
+        end
+        while #t < 4 do t[#t + 1] = 0 end
+        major    = math.min(tonumber(t[1]), 255)
+        minor    = math.min(tonumber(t[2]), 255)
+        build    = math.min(tonumber(t[3]), 65535)
+        revision = math.min(tonumber(t[4]), 65535)
+    end
+
+    local githash = ""
+    local f = io.popen("git rev-parse --short HEAD")
+    if f then
+        githash = f:read("*a"):gsub("%s+", "")
+        f:close()
+    end
+
+    local productVersion = major .. "." .. minor .. "." .. build .. "." .. revision
+    if githash ~= "" then
+        productVersion = productVersion .. "-" .. githash
+    end
+
+    defines { "rsc_FileVersion_MAJOR=" .. major }
+    defines { "rsc_FileVersion_MINOR=" .. minor }
+    defines { "rsc_FileVersion_BUILD=" .. build }
+    defines { "rsc_FileVersion_REVISION=" .. revision }
+    defines { "rsc_FileVersion=\"" .. major .. "." .. minor .. "." .. build .. "\"" }
+    defines { "rsc_ProductVersion=\"" .. productVersion .. "\"" }
+    defines { "rsc_GitSHA1=\"" .. githash .. "\"" }
+    defines { "rsc_GitSHA1W=L\"" .. githash .. "\"" }
 
     flags {
         staticruntime "on",
@@ -74,7 +117,17 @@ project "OpenLimitAdjuster"
 
 	libdirs { "$(PLUGIN_SDK_DIR)/output/lib" }
 
+    filter "configurations:Debug*"
+        symbols "On"
+
+    filter "configurations:Release*"
+        defines { "NDEBUG" }
+        optimize "Speed"
+
     largeaddressaware "on"
+
+    filter "action:vs*"
+        buildoptions { "/arch:IA32" }           -- disable the use of SSE/SSE2 instructions
 
 	filter "configurations:Debug"
 		defines { "DEBUG" }
